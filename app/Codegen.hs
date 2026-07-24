@@ -6,6 +6,7 @@ module Codegen
     Register (..),
     generateProgram,
     instructionCount,
+    renderProgram,
   )
 where
 
@@ -46,3 +47,27 @@ generateExpression (Parser.Constant value) = Imm value
 
 instructionCount :: Program -> Int
 instructionCount (Program (Function _ instructions)) = length instructions
+
+renderProgram :: Program -> String
+renderProgram (Program function) =
+  unlines
+    [ "    .text",
+      renderFunction function,
+      "    .section .note.GNU-stack,\"\",@progbits"
+    ]
+
+renderFunction :: Function -> String
+renderFunction (Function name instructions) =
+  unlines
+    ( ["    .globl " ++ name, name ++ ":"]
+        ++ map renderInstruction instructions
+    )
+
+renderInstruction :: Instruction -> String
+renderInstruction (Mov source destination) =
+  "    movl " ++ renderOperand source ++ ", " ++ renderOperand destination
+renderInstruction Ret = "    ret"
+
+renderOperand :: Operand -> String
+renderOperand (Imm value) = '$' : show value
+renderOperand (Reg AX) = "%eax"
