@@ -1,12 +1,13 @@
 module Main where
 
 import Control.Exception (evaluate)
+import Codegen (generateProgram, instructionCount)
 import Parser (parseProgram, tokenize)
 import System.Environment (getArgs)
 import System.Exit (ExitCode (..), exitSuccess, exitWith)
 import System.IO (hPutStrLn, stderr)
 
-data Mode = Lex | Parse | Ast
+data Mode = Lex | Parse | Codegen | Ast
 
 data Args
   = Run Mode FilePath
@@ -18,6 +19,7 @@ parseArgs ["--help"] = Help
 parseArgs [file] = Run Parse file
 parseArgs ["--lex", file] = Run Lex file
 parseArgs ["--parse", file] = Run Parse file
+parseArgs ["--codegen", file] = Run Codegen file
 parseArgs ["--ast", file] = Run Ast file
 parseArgs _ = Invalid
 
@@ -29,6 +31,7 @@ usage =
       "Options:",
       "  --lex     Tokenize the input and exit",
       "  --parse   Parse the input and exit (default)",
+      "  --codegen Parse and generate assembly IR, then exit",
       "  --ast     Parse the input and print the AST",
       "  --help    Show this help message"
     ]
@@ -48,6 +51,11 @@ main = do
           exitSuccess
         Parse -> case parseProgram toks of
           Right _ -> exitSuccess
+          Left msg -> failWith ("parse error: " ++ msg)
+        Codegen -> case parseProgram toks of
+          Right ast -> do
+            _ <- evaluate (instructionCount (generateProgram ast))
+            exitSuccess
           Left msg -> failWith ("parse error: " ++ msg)
         Ast -> case parseProgram toks of
           Right ast -> do
